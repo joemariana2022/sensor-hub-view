@@ -19,7 +19,8 @@ import {
   Key,
   Settings,
   Layers,
-  Monitor
+  Monitor,
+  Lock
 } from 'lucide-react';
 import WidgetManager from '@/components/WidgetManager';
 import DashboardViewer from '@/components/DashboardViewer';
@@ -43,18 +44,21 @@ interface Channel {
   apiKey: string;
   lastUpdate: string;
   widgets: Widget[];
+  assignedUsers?: string[];
 }
 
 interface DashboardListProps {
   channels: Channel[];
   onUpdateChannel: (channelId: number, updatedData: Partial<Channel>) => void;
   onDeleteChannel: (channelId: number) => void;
+  isAdmin: boolean;
 }
 
 const DashboardList: React.FC<DashboardListProps> = ({ 
   channels, 
   onUpdateChannel, 
-  onDeleteChannel 
+  onDeleteChannel,
+  isAdmin
 }) => {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -75,6 +79,14 @@ const DashboardList: React.FC<DashboardListProps> = ({
   };
 
   const handleEditFields = (channel: Channel) => {
+    if (!isAdmin) {
+      toast({ 
+        title: "Access Denied", 
+        description: "Only administrators can edit dashboard fields.", 
+        variant: "destructive" 
+      });
+      return;
+    }
     setSelectedChannel(channel);
     setEditFields([...channel.fields]);
     setShowEdit(true);
@@ -86,6 +98,14 @@ const DashboardList: React.FC<DashboardListProps> = ({
   };
 
   const handleDeleteDashboard = (channel: Channel) => {
+    if (!isAdmin) {
+      toast({ 
+        title: "Access Denied", 
+        description: "Only administrators can delete dashboards.", 
+        variant: "destructive" 
+      });
+      return;
+    }
     setSelectedChannel(channel);
     setShowDelete(true);
   };
@@ -175,6 +195,15 @@ const DashboardList: React.FC<DashboardListProps> = ({
                   {channel.widgets.length} configured
                 </Badge>
               </div>
+
+              {isAdmin && channel.assignedUsers && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Assigned Users:</p>
+                  <Badge variant="outline" className="text-xs">
+                    {channel.assignedUsers.length} users
+                  </Badge>
+                </div>
+              )}
               
               <div className="text-xs text-muted-foreground">
                 Last update: {channel.lastUpdate}
@@ -201,7 +230,9 @@ const DashboardList: React.FC<DashboardListProps> = ({
                   size="sm" 
                   variant="outline"
                   onClick={() => handleEditFields(channel)}
+                  disabled={!isAdmin}
                 >
+                  {!isAdmin && <Lock className="h-3 w-3 mr-1" />}
                   <Edit className="h-3 w-3 mr-1" />
                   Edit
                 </Button>
@@ -213,14 +244,16 @@ const DashboardList: React.FC<DashboardListProps> = ({
                   <Layers className="h-3 w-3 mr-1" />
                   Widgets
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="destructive"
-                  onClick={() => handleDeleteDashboard(channel)}
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
+                {isAdmin && (
+                  <Button 
+                    size="sm" 
+                    variant="destructive"
+                    onClick={() => handleDeleteDashboard(channel)}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Delete
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -250,21 +283,23 @@ const DashboardList: React.FC<DashboardListProps> = ({
           </DialogHeader>
           {selectedChannel && (
             <div className="space-y-4">
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <Label className="font-medium">API Key</Label>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => copyApiKey(selectedChannel.apiKey)}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
+              {isAdmin && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="font-medium">API Key</Label>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => copyApiKey(selectedChannel.apiKey)}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <code className="text-sm bg-background p-2 rounded border block">
+                    {selectedChannel.apiKey}
+                  </code>
                 </div>
-                <code className="text-sm bg-background p-2 rounded border block">
-                  {selectedChannel.apiKey}
-                </code>
-              </div>
+              )}
               
               <div>
                 <Label className="font-medium">Defined Fields</Label>
@@ -284,116 +319,135 @@ const DashboardList: React.FC<DashboardListProps> = ({
                   ))}
                 </div>
               </div>
+
+              {isAdmin && selectedChannel.assignedUsers && (
+                <div>
+                  <Label className="font-medium">Assigned Users</Label>
+                  <div className="mt-2 space-y-1">
+                    {selectedChannel.assignedUsers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No users assigned</p>
+                    ) : (
+                      selectedChannel.assignedUsers.map((userEmail, idx) => (
+                        <Badge key={idx} variant="secondary" className="mr-2">
+                          {userEmail}
+                        </Badge>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Edit Fields Dialog */}
-      <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Fields: {selectedChannel?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label>Fields Configuration</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addField}>
-                <Plus className="h-3 w-3 mr-1" />
-                Add Field
-              </Button>
-            </div>
-            
-            <div className="space-y-3">
-              {editFields.map((field, index) => (
-                <div key={index} className="flex items-end space-x-2 p-3 bg-muted/50 rounded-lg">
-                  <div className="flex-1">
-                    <Label className="text-xs">Field Name</Label>
-                    <Input
-                      value={field.name}
-                      onChange={(e) => updateField(index, { name: e.target.value })}
-                      placeholder="e.g., temperature, pressure"
-                      className="mt-1"
-                    />
-                  </div>
-                  
-                  <div className="w-32">
-                    <Label className="text-xs">Type</Label>
-                    <Select
-                      value={field.type}
-                      onValueChange={(value) => updateField(index, { 
-                        type: value as Field['type'],
-                        initialValue: getDefaultValue(value)
-                      })}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="numeric">Numeric</SelectItem>
-                        <SelectItem value="text">Text</SelectItem>
-                        <SelectItem value="boolean">Boolean</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="w-24">
-                    <Label className="text-xs">Initial Value</Label>
-                    {field.type === 'boolean' ? (
+      {/* Edit Fields Dialog - Only for Admins */}
+      {isAdmin && (
+        <Dialog open={showEdit} onOpenChange={setShowEdit}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Fields: {selectedChannel?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Fields Configuration</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addField}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Field
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                {editFields.map((field, index) => (
+                  <div key={index} className="flex items-end space-x-2 p-3 bg-muted/50 rounded-lg">
+                    <div className="flex-1">
+                      <Label className="text-xs">Field Name</Label>
+                      <Input
+                        value={field.name}
+                        onChange={(e) => updateField(index, { name: e.target.value })}
+                        placeholder="e.g., temperature, pressure"
+                        className="mt-1"
+                      />
+                    </div>
+                    
+                    <div className="w-32">
+                      <Label className="text-xs">Type</Label>
                       <Select
-                        value={field.initialValue.toString()}
-                        onValueChange={(value) => updateField(index, { initialValue: value === 'true' })}
+                        value={field.type}
+                        onValueChange={(value) => updateField(index, { 
+                          type: value as Field['type'],
+                          initialValue: getDefaultValue(value)
+                        })}
                       >
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="true">True</SelectItem>
-                          <SelectItem value="false">False</SelectItem>
+                          <SelectItem value="numeric">Numeric</SelectItem>
+                          <SelectItem value="text">Text</SelectItem>
+                          <SelectItem value="boolean">Boolean</SelectItem>
                         </SelectContent>
                       </Select>
-                    ) : (
-                      <Input
-                        value={field.initialValue.toString()}
-                        onChange={(e) => {
-                          const value = field.type === 'numeric' ? 
-                            parseFloat(e.target.value) || 0 : 
-                            e.target.value;
-                          updateField(index, { initialValue: value });
-                        }}
-                        type={field.type === 'numeric' ? 'number' : 'text'}
-                        placeholder={field.type === 'numeric' ? '0' : 'value'}
-                        className="mt-1"
-                      />
+                    </div>
+                    
+                    <div className="w-24">
+                      <Label className="text-xs">Initial Value</Label>
+                      {field.type === 'boolean' ? (
+                        <Select
+                          value={field.initialValue.toString()}
+                          onValueChange={(value) => updateField(index, { initialValue: value === 'true' })}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">True</SelectItem>
+                            <SelectItem value="false">False</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          value={field.initialValue.toString()}
+                          onChange={(e) => {
+                            const value = field.type === 'numeric' ? 
+                              parseFloat(e.target.value) || 0 : 
+                              e.target.value;
+                            updateField(index, { initialValue: value });
+                          }}
+                          type={field.type === 'numeric' ? 'number' : 'text'}
+                          placeholder={field.type === 'numeric' ? '0' : 'value'}
+                          className="mt-1"
+                        />
+                      )}
+                    </div>
+                    
+                    {editFields.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeField(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
                     )}
                   </div>
-                  
-                  {editFields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => removeField(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
+              
+              <div className="flex justify-end space-x-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowEdit(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={saveFieldChanges}>
+                  Save Changes
+                </Button>
+              </div>
             </div>
-            
-            <div className="flex justify-end space-x-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowEdit(false)}>
-                Cancel
-              </Button>
-              <Button onClick={saveFieldChanges}>
-                Save Changes
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Widget Management Dialog */}
       <Dialog open={showWidgets} onOpenChange={setShowWidgets}>

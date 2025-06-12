@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/use-toast';
 import { 
   Activity, 
@@ -31,7 +32,9 @@ import {
   Wifi,
   Server,
   Copy,
-  Layers
+  Layers,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import DashboardForm from '@/components/DashboardForm';
 import DashboardList from '@/components/DashboardList';
@@ -67,7 +70,8 @@ const Index = () => {
             timeRange: '24h'
           }
         }
-      ]
+      ],
+      assignedUsers: ['operator1@example.com']
     },
     { 
       id: 2,
@@ -79,7 +83,8 @@ const Index = () => {
       ], 
       apiKey: 'key_tank002_abc456',
       lastUpdate: '2024-06-12 14:29:45',
-      widgets: []
+      widgets: [],
+      assignedUsers: []
     }
   ]);
 
@@ -127,12 +132,18 @@ const Index = () => {
       toast({ title: "Welcome Admin!", description: "Successfully logged in." });
     } else if (loginForm.email && loginForm.password) {
       const foundUser = users.find(u => u.email === loginForm.email);
-      if (foundUser && foundUser.verified && foundUser.approved) {
-        setUser({ ...foundUser, role: 'user' });
-        setCurrentView('user-dashboard');
-        toast({ title: "Welcome!", description: "Successfully logged in." });
+      if (foundUser && foundUser.verified) {
+        if (!foundUser.approved) {
+          setUser({ ...foundUser, role: 'user' });
+          setCurrentView('pending-approval');
+          toast({ title: "Account Pending", description: "Your account is waiting for admin approval." });
+        } else {
+          setUser({ ...foundUser, role: 'user' });
+          setCurrentView('user-dashboard');
+          toast({ title: "Welcome!", description: "Successfully logged in." });
+        }
       } else {
-        toast({ title: "Access Denied", description: "Account not verified or approved.", variant: "destructive" });
+        toast({ title: "Access Denied", description: "Account not found or not verified.", variant: "destructive" });
       }
     } else {
       toast({ title: "Invalid Credentials", description: "Please check your email and password.", variant: "destructive" });
@@ -188,7 +199,8 @@ const Index = () => {
       fields: channelData.fields,
       apiKey: `key_${channelData.name.toLowerCase()}_${Math.random().toString(36).substr(2, 9)}`,
       lastUpdate: new Date().toLocaleString(),
-      widgets: []
+      widgets: [],
+      assignedUsers: channelData.assignedUsers || []
     };
     setChannels(prev => [...prev, newChannel]);
     toast({ title: "Dashboard Created", description: `${channelData.name} created successfully.` });
@@ -370,6 +382,57 @@ const Index = () => {
     );
   }
 
+  if (currentView === 'pending-approval') {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card shadow-sm">
+          <div className="flex h-16 items-center justify-between px-6">
+            <div className="flex items-center space-x-4">
+              <Server className="h-8 w-8 text-primary" />
+              <h1 className="text-xl font-bold">TankManage By TeamSKRN</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Switch
+                checked={isDarkMode}
+                onCheckedChange={setIsDarkMode}
+                className="data-[state=checked]:bg-primary"
+              />
+              <Badge variant="secondary">{user?.username}</Badge>
+              <Button variant="ghost" onClick={logout}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+          <Card className="w-full max-w-md text-center">
+            <CardHeader>
+              <div className="flex justify-center mb-4">
+                <Clock className="h-16 w-16 text-amber-500" />
+              </div>
+              <CardTitle className="text-2xl">Waiting for Approval</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mx-auto mb-2" />
+                  <p className="text-amber-800 dark:text-amber-200">
+                    Your account is pending admin approval. Please wait for an administrator to approve your access.
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  You will receive access to assigned dashboards once approved.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   if (currentView === 'admin-dashboard') {
     return (
       <div className="min-h-screen bg-background">
@@ -378,7 +441,7 @@ const Index = () => {
           <div className="flex h-16 items-center justify-between px-6">
             <div className="flex items-center space-x-4">
               <Server className="h-8 w-8 text-primary" />
-              <h1 className="text-xl font-bold">IoT Monitor - Admin</h1>
+              <h1 className="text-xl font-bold">TankManage By TeamSKRN - Admin</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Switch
@@ -481,13 +544,14 @@ const Index = () => {
             <TabsContent value="dashboards" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Dashboard Management</h2>
-                <DashboardForm onCreateChannel={createChannel} />
+                <DashboardForm onCreateChannel={createChannel} users={users} />
               </div>
               
               <DashboardList 
                 channels={channels}
                 onUpdateChannel={updateChannel}
                 onDeleteChannel={deleteChannel}
+                isAdmin={true}
               />
             </TabsContent>
 
@@ -545,7 +609,10 @@ const Index = () => {
   }
 
   if (currentView === 'user-dashboard') {
-    const userDashboards = user?.assignedDashboards || [];
+    // Filter channels to show only those assigned to the current user
+    const userAssignedChannels = channels.filter(channel => 
+      channel.assignedUsers && channel.assignedUsers.includes(user?.email)
+    );
     
     return (
       <div className="min-h-screen bg-background">
@@ -554,7 +621,7 @@ const Index = () => {
           <div className="flex h-16 items-center justify-between px-6">
             <div className="flex items-center space-x-4">
               <Server className="h-8 w-8 text-primary" />
-              <h1 className="text-xl font-bold">IoT Monitor</h1>
+              <h1 className="text-xl font-bold">TankManage By TeamSKRN</h1>
             </div>
             <div className="flex items-center space-x-4">
               <Switch
@@ -572,7 +639,7 @@ const Index = () => {
         </header>
 
         <div className="p-6">
-          {userDashboards.length === 0 ? (
+          {userAssignedChannels.length === 0 ? (
             <div className="text-center py-12">
               <Monitor className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-2">No Dashboards Assigned</h2>
@@ -580,86 +647,14 @@ const Index = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Your Dashboards</h2>
+              <h2 className="text-2xl font-bold">Your Assigned Dashboards</h2>
               
-              {userDashboards.map((dashboardName) => {
-                const channelData = channels.find(c => c.name === dashboardName);
-                const liveData = mockData[dashboardName] || {};
-                
-                return (
-                  <Card key={dashboardName} className="overflow-hidden">
-                    <CardHeader>
-                      <CardTitle className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Activity className="h-6 w-6 text-primary" />
-                          <span>{dashboardName}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-                          <span className="text-sm text-muted-foreground">Live</span>
-                        </div>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {channelData?.fields.map((field) => (
-                          <Card key={field.name} className="bg-muted/50">
-                            <CardContent className="p-4 text-center">
-                              <div className="flex items-center justify-center mb-2">
-                                <Gauge className="h-5 w-5 text-primary mr-2" />
-                                <h3 className="font-semibold capitalize">{field.name}</h3>
-                              </div>
-                              <div className="text-3xl font-bold text-primary">
-                                {liveData[field.name]?.toFixed(1) || '--'}
-                              </div>
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {field.name === 'temperature' && '°C'}
-                                {field.name === 'pressure' && 'bar'}
-                                {field.name === 'level' && '%'}
-                                {field.name === 'humidity' && '%'}
-                                {field.name === 'ph' && 'pH'}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                      
-                      <div className="mt-6 pt-6 border-t">
-                        <h4 className="font-semibold mb-4 flex items-center">
-                          <TrendingUp className="h-4 w-4 mr-2" />
-                          Statistics (Last 24h)
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                          <div className="text-center">
-                            <p className="text-muted-foreground">Average</p>
-                            <p className="font-semibold">
-                              {channelData?.fields.map(field => 
-                                `${field.name}: ${(liveData[field.name] || 0).toFixed(1)}`
-                              ).join(' | ')}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-muted-foreground">Min</p>
-                            <p className="font-semibold text-blue-600">
-                              {channelData?.fields.map(field => 
-                                `${field.name}: ${((liveData[field.name] || 0) * 0.8).toFixed(1)}`
-                              ).join(' | ')}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-muted-foreground">Max</p>
-                            <p className="font-semibold text-red-600">
-                              {channelData?.fields.map(field => 
-                                `${field.name}: ${((liveData[field.name] || 0) * 1.2).toFixed(1)}`
-                              ).join(' | ')}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              <DashboardList 
+                channels={userAssignedChannels}
+                onUpdateChannel={updateChannel}
+                onDeleteChannel={deleteChannel}
+                isAdmin={false}
+              />
             </div>
           )}
         </div>
