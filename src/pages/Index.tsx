@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,8 +29,13 @@ import {
   Moon,
   Sun,
   Wifi,
-  Server
+  Server,
+  Copy,
+  Layers
 } from 'lucide-react';
+import DashboardForm from '@/components/DashboardForm';
+import DashboardList from '@/components/DashboardList';
+import WidgetManager from '@/components/WidgetManager';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState('login');
@@ -43,16 +47,39 @@ const Index = () => {
   // Mock data for demonstration
   const [channels, setChannels] = useState([
     { 
+      id: 1,
       name: 'Tank_001', 
-      fields: ['temperature', 'pressure', 'level'], 
-      apiKey: 'key_tank001_xyz',
-      lastUpdate: '2024-06-12 14:30:22'
+      fields: [
+        { name: 'temperature', type: 'numeric', initialValue: 23.5 },
+        { name: 'pressure', type: 'numeric', initialValue: 1.2 },
+        { name: 'level', type: 'numeric', initialValue: 85.3 }
+      ], 
+      apiKey: 'key_tank001_xyz789',
+      lastUpdate: '2024-06-12 14:30:22',
+      widgets: [
+        { 
+          id: 1, 
+          type: 'chart', 
+          config: { 
+            chartType: 'line', 
+            field: 'temperature', 
+            title: 'Temperature Over Time',
+            timeRange: '24h'
+          }
+        }
+      ]
     },
     { 
+      id: 2,
       name: 'Tank_002', 
-      fields: ['temperature', 'humidity', 'ph'], 
-      apiKey: 'key_tank002_abc',
-      lastUpdate: '2024-06-12 14:29:45'
+      fields: [
+        { name: 'temperature', type: 'numeric', initialValue: 25.1 },
+        { name: 'humidity', type: 'numeric', initialValue: 62.8 },
+        { name: 'ph', type: 'numeric', initialValue: 7.2 }
+      ], 
+      apiKey: 'key_tank002_abc456',
+      lastUpdate: '2024-06-12 14:29:45',
+      widgets: []
     }
   ]);
 
@@ -156,13 +183,27 @@ const Index = () => {
 
   const createChannel = (channelData) => {
     const newChannel = {
+      id: Date.now(),
       name: channelData.name,
       fields: channelData.fields,
       apiKey: `key_${channelData.name.toLowerCase()}_${Math.random().toString(36).substr(2, 9)}`,
-      lastUpdate: new Date().toLocaleString()
+      lastUpdate: new Date().toLocaleString(),
+      widgets: []
     };
     setChannels(prev => [...prev, newChannel]);
     toast({ title: "Dashboard Created", description: `${channelData.name} created successfully.` });
+  };
+
+  const updateChannel = (channelId, updatedData) => {
+    setChannels(prev => prev.map(channel => 
+      channel.id === channelId ? { ...channel, ...updatedData } : channel
+    ));
+    toast({ title: "Dashboard Updated", description: "Changes saved successfully." });
+  };
+
+  const deleteChannel = (channelId) => {
+    setChannels(prev => prev.filter(channel => channel.id !== channelId));
+    toast({ title: "Dashboard Deleted", description: "Dashboard has been removed." });
   };
 
   if (currentView === 'login') {
@@ -440,58 +481,14 @@ const Index = () => {
             <TabsContent value="dashboards" className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Dashboard Management</h2>
-                <CreateChannelDialog onCreateChannel={createChannel} />
+                <DashboardForm onCreateChannel={createChannel} />
               </div>
               
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {channels.map((channel, index) => (
-                  <Card key={index} className="hover:shadow-lg transition-shadow">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center space-x-2">
-                          <Activity className="h-5 w-5 text-primary" />
-                          <span>{channel.name}</span>
-                        </CardTitle>
-                        <div className="flex items-center space-x-1">
-                          <Wifi className="h-4 w-4 text-green-500" />
-                          <span className="text-xs text-muted-foreground">Online</span>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Fields:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {channel.fields.map((field, idx) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {field}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="text-xs text-muted-foreground">
-                        Last update: {channel.lastUpdate}
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-3 w-3 mr-1" />
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="destructive">
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Delete
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <DashboardList 
+                channels={channels}
+                onUpdateChannel={updateChannel}
+                onDeleteChannel={deleteChannel}
+              />
             </TabsContent>
 
             <TabsContent value="database" className="space-y-6">
@@ -606,21 +603,21 @@ const Index = () => {
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {channelData?.fields.map((field) => (
-                          <Card key={field} className="bg-muted/50">
+                          <Card key={field.name} className="bg-muted/50">
                             <CardContent className="p-4 text-center">
                               <div className="flex items-center justify-center mb-2">
                                 <Gauge className="h-5 w-5 text-primary mr-2" />
-                                <h3 className="font-semibold capitalize">{field}</h3>
+                                <h3 className="font-semibold capitalize">{field.name}</h3>
                               </div>
                               <div className="text-3xl font-bold text-primary">
-                                {liveData[field]?.toFixed(1) || '--'}
+                                {liveData[field.name]?.toFixed(1) || '--'}
                               </div>
                               <div className="text-sm text-muted-foreground mt-1">
-                                {field === 'temperature' && '°C'}
-                                {field === 'pressure' && 'bar'}
-                                {field === 'level' && '%'}
-                                {field === 'humidity' && '%'}
-                                {field === 'ph' && 'pH'}
+                                {field.name === 'temperature' && '°C'}
+                                {field.name === 'pressure' && 'bar'}
+                                {field.name === 'level' && '%'}
+                                {field.name === 'humidity' && '%'}
+                                {field.name === 'ph' && 'pH'}
                               </div>
                             </CardContent>
                           </Card>
@@ -637,7 +634,7 @@ const Index = () => {
                             <p className="text-muted-foreground">Average</p>
                             <p className="font-semibold">
                               {channelData?.fields.map(field => 
-                                `${field}: ${(liveData[field] || 0).toFixed(1)}`
+                                `${field.name}: ${(liveData[field.name] || 0).toFixed(1)}`
                               ).join(' | ')}
                             </p>
                           </div>
@@ -645,7 +642,7 @@ const Index = () => {
                             <p className="text-muted-foreground">Min</p>
                             <p className="font-semibold text-blue-600">
                               {channelData?.fields.map(field => 
-                                `${field}: ${((liveData[field] || 0) * 0.8).toFixed(1)}`
+                                `${field.name}: ${((liveData[field.name] || 0) * 0.8).toFixed(1)}`
                               ).join(' | ')}
                             </p>
                           </div>
@@ -653,7 +650,7 @@ const Index = () => {
                             <p className="text-muted-foreground">Max</p>
                             <p className="font-semibold text-red-600">
                               {channelData?.fields.map(field => 
-                                `${field}: ${((liveData[field] || 0) * 1.2).toFixed(1)}`
+                                `${field.name}: ${((liveData[field.name] || 0) * 1.2).toFixed(1)}`
                               ).join(' | ')}
                             </p>
                           </div>
@@ -671,107 +668,6 @@ const Index = () => {
   }
 
   return null;
-};
-
-// Create Channel Dialog Component
-const CreateChannelDialog = ({ onCreateChannel }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [channelName, setChannelName] = useState('');
-  const [fields, setFields] = useState(['']);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (channelName && fields.filter(f => f.trim()).length > 0) {
-      onCreateChannel({
-        name: channelName,
-        fields: fields.filter(f => f.trim())
-      });
-      setChannelName('');
-      setFields(['']);
-      setIsOpen(false);
-    }
-  };
-
-  const addField = () => {
-    setFields([...fields, '']);
-  };
-
-  const updateField = (index, value) => {
-    const newFields = [...fields];
-    newFields[index] = value;
-    setFields(newFields);
-  };
-
-  const removeField = (index) => {
-    setFields(fields.filter((_, i) => i !== index));
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Dashboard
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create New Dashboard</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="channel-name">Dashboard Name</Label>
-            <Input
-              id="channel-name"
-              value={channelName}
-              onChange={(e) => setChannelName(e.target.value)}
-              placeholder="e.g., Tank_003"
-              required
-            />
-          </div>
-          
-          <div>
-            <Label>Data Fields</Label>
-            {fields.map((field, index) => (
-              <div key={index} className="flex space-x-2 mt-2">
-                <Input
-                  value={field}
-                  onChange={(e) => updateField(index, e.target.value)}
-                  placeholder="e.g., temperature, pressure"
-                />
-                {fields.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => removeField(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addField}
-              className="mt-2"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Field
-            </Button>
-          </div>
-          
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit">Create Dashboard</Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
 };
 
 export default Index;
