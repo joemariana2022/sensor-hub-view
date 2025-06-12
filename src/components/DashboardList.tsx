@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,9 +18,11 @@ import {
   Copy, 
   Key,
   Settings,
-  Layers
+  Layers,
+  Monitor
 } from 'lucide-react';
 import WidgetManager from '@/components/WidgetManager';
+import DashboardViewer from '@/components/DashboardViewer';
 
 interface Field {
   name: string;
@@ -60,11 +61,17 @@ const DashboardList: React.FC<DashboardListProps> = ({
   const [showEdit, setShowEdit] = useState(false);
   const [showWidgets, setShowWidgets] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showViewer, setShowViewer] = useState(false);
   const [editFields, setEditFields] = useState<Field[]>([]);
 
   const handleViewDetails = (channel: Channel) => {
     setSelectedChannel(channel);
     setShowDetails(true);
+  };
+
+  const handleViewDashboard = (channel: Channel) => {
+    setSelectedChannel(channel);
+    setShowViewer(true);
   };
 
   const handleEditFields = (channel: Channel) => {
@@ -177,6 +184,14 @@ const DashboardList: React.FC<DashboardListProps> = ({
                 <Button 
                   size="sm" 
                   variant="outline"
+                  onClick={() => handleViewDashboard(channel)}
+                >
+                  <Monitor className="h-3 w-3 mr-1" />
+                  View
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
                   onClick={() => handleViewDetails(channel)}
                 >
                   <Eye className="h-3 w-3 mr-1" />
@@ -211,6 +226,21 @@ const DashboardList: React.FC<DashboardListProps> = ({
           </Card>
         ))}
       </div>
+
+      {/* View Dashboard Dialog */}
+      <Dialog open={showViewer} onOpenChange={setShowViewer}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Dashboard: {selectedChannel?.name}</DialogTitle>
+          </DialogHeader>
+          {selectedChannel && (
+            <DashboardViewer 
+              channel={selectedChannel}
+              onUpdateChannel={onUpdateChannel}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* View Details Dialog */}
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
