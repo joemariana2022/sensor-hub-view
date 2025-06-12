@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -51,17 +50,19 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({ channel, onUpdateChannel 
   const [widgets, setWidgets] = useState<Widget[]>(channel.widgets);
   const [newWidget, setNewWidget] = useState({
     type: 'chart' as Widget['type'],
-    config: {}
+    config: { field: '' }
   });
 
   const numericFields = channel.fields.filter(field => field.type === 'numeric');
 
   const getDefaultConfig = (type: Widget['type']) => {
+    const defaultField = numericFields[0]?.name || '';
+    
     switch (type) {
       case 'chart':
         return {
           chartType: 'line',
-          field: numericFields[0]?.name || '',
+          field: defaultField,
           timeRange: '24h',
           aggregationInterval: '1h',
           title: '',
@@ -70,20 +71,20 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({ channel, onUpdateChannel 
         };
       case 'numeric':
         return {
-          field: numericFields[0]?.name || '',
+          field: defaultField,
           title: '',
           unit: ''
         };
       case 'bar':
         return {
-          field: numericFields[0]?.name || '',
+          field: defaultField,
           aggregationType: 'average',
           title: '',
           xAxisLabel: 'Categories',
           yAxisLabel: 'Values'
         };
       default:
-        return {};
+        return { field: defaultField };
     }
   };
 
@@ -104,7 +105,7 @@ const WidgetManager: React.FC<WidgetManagerProps> = ({ channel, onUpdateChannel 
     onUpdateChannel(channel.id, { widgets: updatedWidgets });
     
     // Reset form
-    setNewWidget({ type: 'chart', config: {} });
+    setNewWidget({ type: 'chart', config: { field: numericFields[0]?.name || '' } });
     
     toast({ title: "Widget Added", description: "Widget has been added to the dashboard." });
   };

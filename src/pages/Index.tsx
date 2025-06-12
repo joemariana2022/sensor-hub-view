@@ -44,22 +44,22 @@ const Index = () => {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [registerForm, setRegisterForm] = useState({ email: '', username: '', password: '', confirmPassword: '' });
 
-  // Mock data for demonstration
+  // Mock data for demonstration - fixed type issues
   const [channels, setChannels] = useState([
     { 
       id: 1,
       name: 'Tank_001', 
       fields: [
-        { name: 'temperature', type: 'numeric', initialValue: 23.5 },
-        { name: 'pressure', type: 'numeric', initialValue: 1.2 },
-        { name: 'level', type: 'numeric', initialValue: 85.3 }
+        { name: 'temperature', type: 'numeric' as const, initialValue: 23.5 },
+        { name: 'pressure', type: 'numeric' as const, initialValue: 1.2 },
+        { name: 'level', type: 'numeric' as const, initialValue: 85.3 }
       ], 
       apiKey: 'key_tank001_xyz789',
       lastUpdate: '2024-06-12 14:30:22',
       widgets: [
         { 
           id: 1, 
-          type: 'chart', 
+          type: 'chart' as const, 
           config: { 
             chartType: 'line', 
             field: 'temperature', 
@@ -73,9 +73,9 @@ const Index = () => {
       id: 2,
       name: 'Tank_002', 
       fields: [
-        { name: 'temperature', type: 'numeric', initialValue: 25.1 },
-        { name: 'humidity', type: 'numeric', initialValue: 62.8 },
-        { name: 'ph', type: 'numeric', initialValue: 7.2 }
+        { name: 'temperature', type: 'numeric' as const, initialValue: 25.1 },
+        { name: 'humidity', type: 'numeric' as const, initialValue: 62.8 },
+        { name: 'ph', type: 'numeric' as const, initialValue: 7.2 }
       ], 
       apiKey: 'key_tank002_abc456',
       lastUpdate: '2024-06-12 14:29:45',
